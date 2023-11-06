@@ -1,19 +1,34 @@
 {
+    "version": "0.12.6",
+    "description": "Charm — a framework for building terminal applications.",
     "homepage": "https://github.com/charmbracelet/charm",
-    "checkver": "charm v(\\d+\\.\\d\\d)",
-    "version": "1.21",
-    "license": "freeware",
-    "description": "The Charm Tool and Library 🌟",
-    "url": "https://www.nirsoft.net/utils/zipinst.zip",
-    "hash": "5f086a0dc689217026f06111327ae5a7d9baaa250322b84ff9dda2c74f3de788",
-    "autoupdate": {
-        "url": "https://www.nirsoft.net/utils/zipinst.zip"
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/charm_0.12.6_Windows_x86_64.zip",
+            "hash": {
+                "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/checksums.txt",
+                "regex": "([a-fA-F0-9]{64})\\s+charm_0.12.6_Windows_x86_64.zip"
+            },
+            "bin": "charm.exe"
+        },
+        "32bit": {
+            "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/charm_0.12.6_Windows_i386.zip",
+            "hash": {
+                "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/checksums.txt",
+                "regex": "([a-fA-F0-9]{64})\\s+charm_0.12.6_Windows_i386.zip"
+            },
+            "bin": "charm.exe"
+        }
     },
-    "bin": "zipinst.exe",
-    "shortcuts": [
-        [
-            "zipinst.exe",
-            "NirSoft\\ZipInstaller - Install applications with no install support"
-        ]
-    ]
+    "checkver": {
+        "github": "https://github.com/charmbracelet/charm"
+    },
+    "autoupdate": {
+        "url": "https://github.com/charmbracelet/charm/releases/download/v$version/charm_$version_Windows_$architecture.zip",
+        "hash": {
+            "url": "https://github.com/charmbracelet/charm/releases/download/v$version/checksums.txt",
+            "regex": "$sha256\\s+charm_$version_Windows_$architecture.zip"
+        }
+    }
 }
