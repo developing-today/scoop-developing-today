@@ -1,0 +1,19 @@
+{
+    "homepage": "https://github.com/charmbracelet/charm",
+    "checkver": "charm v(\\d+\\.\\d\\d)",
+    "version": "1.21",
+    "license": "freeware",
+    "description": "The Charm Tool and Library 🌟",
+    "url": "https://www.nirsoft.net/utils/zipinst.zip",
+    "hash": "5f086a0dc689217026f06111327ae5a7d9baaa250322b84ff9dda2c74f3de788",
+    "autoupdate": {
+        "url": "https://www.nirsoft.net/utils/zipinst.zip"
+    },
+    "bin": "zipinst.exe",
+    "shortcuts": [
+        [
+            "zipinst.exe",
+            "NirSoft\\ZipInstaller - Install applications with no install support"
+        ]
+    ]
+}
