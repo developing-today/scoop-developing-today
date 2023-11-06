@@ -6,20 +6,12 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/charm_0.12.6_Windows_x86_64.zip",
-            "hash": {
-                "type": "sha256",
-                "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/checksums.txt",
-                "regex": "([a-fA-F0-9]{64})\\s+charm_0.12.6_Windows_x86_64.zip"
-            },
+            "hash": "auto",
             "bin": "charm.exe"
         },
         "32bit": {
             "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/charm_0.12.6_Windows_i386.zip",
-            "hash": {
-                "type": "sha256",
-                "url": "https://github.com/charmbracelet/charm/releases/download/v0.12.6/checksums.txt",
-                "regex": "([a-fA-F0-9]{64})\\s+charm_0.12.6_Windows_i386.zip"
-            },
+            "hash": "auto",
             "bin": "charm.exe"
         }
     },
@@ -28,10 +20,6 @@
     },
     "autoupdate": {
         "url": "https://github.com/charmbracelet/charm/releases/download/v$version/charm_$version_Windows_$architecture.zip",
-        "hash": {
-            "type": "sha256",
-            "url": "https://github.com/charmbracelet/charm/releases/download/v$version/checksums.txt",
-            "regex": "$sha256\\s+charm_$version_Windows_$architecture.zip"
-        }
+        "hash": "auto"
     }
 }
