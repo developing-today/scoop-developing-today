@@ -1,0 +1,22 @@
+{
+    "version": "1.2.3-test.beta-3",
+    "description": "graph - 🧊 Backup and restore Ed25519 SSH keys with seed words.",
+    "homepage": "https://github.com/developing-today/code",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/developing-today/code/releases/download/v1.2.3-test.beta-3/code_1.2.3-test.beta-3_graph_windows_386.zip",
+            "bin": "graph.exe"
+        },
+        "32bit": {
+            "url": "https://github.com/developing-today/code/releases/download/v1.2.3-test.beta-3/code_1.2.3-test.beta-3_graph_windows_amd64v1.zip",
+            "bin": "graph.exe"
+        }
+    },
+    "checkver": {
+        "github": "https://github.com/developing-today/code"
+    },
+    "autoupdate": {
+        "url": "https://github.com/developing-today/code/releases/download/v$version/code_$version_graph_windows_$architecture.zip"
+    }
+}
