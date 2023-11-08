@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@main
-    - shell: pwsh
-      run: ./bin/autoupdate.ps1
+    - run: ./bin/autoupdate.ps1
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
     - uses: stefanzweifel/git-auto-commit-action@v5
