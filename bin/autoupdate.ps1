@@ -4,6 +4,15 @@ param (
     [string]$bucket = ''
 )
 
+Set-StrictMode -Version Latest
+$PSNativeCommandUseErrorActionPreference = $true
+
+if ($PSNativeCommandUseErrorActionPreference) {
+    # always true, this is a linter workaround
+    $ErrorActionPreference = "Stop"
+    $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+}
+
 if ([string]::IsNullOrWhiteSpace($bucket)) {
     $bucket = "$PSScriptRoot/../bucket"
     Write-Verbose -Verbose "Using default bucket path '$bucket'."
@@ -248,7 +257,7 @@ function Update-Bucket {
     )
     $bucketPaths = Get-JsonPaths $Bucket
     Write-Verbose -Verbose "Bucket paths: $($bucketPaths | ConvertTo-Json -Depth 100)"
-    Write-Verbose -Verbose "Parsing JSON content from $($bucketPaths.Count) files."
+    Write-Verbose -Verbose "Parsing JSON content from $(($bucketPaths | Measure-Object).Count) files."
     $Content = Get-JsonContentAsDictionary $bucketPaths
     Write-Verbose -Verbose "Bucket content: $($Content | ConvertTo-Json -Depth 100)"
 
