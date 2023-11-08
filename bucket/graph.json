@@ -1,5 +1,5 @@
 {
-    "version": "1.2.3-test.beta-3",
+    "version": "1.2.4",
     "description": "graph - 🧊 Backup and restore Ed25519 SSH keys with seed words.",
     "homepage": "https://github.com/developing-today/code",
     "license": "MIT",
