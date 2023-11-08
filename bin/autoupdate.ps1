@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+
 param (
     [string]$bucket = ''
 )
@@ -55,6 +57,7 @@ function Convert-GitHubUrlToRepoId {
         return $null
     }
 }
+
 function Get-GitHubUrlFromData {
     param (
         [PSCustomObject]$Data
@@ -85,6 +88,7 @@ function Convert-GitHubUrlToRepoId {
         return $null
     }
 }
+
 function Get-RepoIdForEachPath {
     param (
         [hashtable]$Hashtable
@@ -100,27 +104,6 @@ function Get-RepoIdForEachPath {
         }
     }
     return $RepoIds
-}
-
-function Update-Bucket {
-    param (
-        [string]$Bucket
-    )
-    $bucketPaths = Get-JsonPaths $Bucket
-    Write-Verbose -Verbose "Bucket paths: $($bucketPaths | ConvertTo-Json -Depth 100)"
-    Write-Verbose -Verbose "Parsing JSON content from $($bucketPaths.Count) files."
-    $bucketContent = Get-JsonContentAsDictionary $bucketPaths
-    Write-Verbose -Verbose "Bucket content: $($bucketContent | ConvertTo-Json -Depth 100)"
-
-    $repoIds = Get-RepoIdForEachPath $bucketContent
-    Write-Verbose -Verbose "Repo IDs: $($repoIds | ConvertTo-Json -Depth 100)"
-
-    $uniqueRepoIds = Get-UniqueRepoIds $repoIds
-    Write-Verbose -Verbose "Unique repo IDs: $($uniqueRepoIds | ConvertTo-Json -Depth 100)"
-    Write-Verbose -Verbose "Getting latest tags for $($RepoIds.Count) repos."
-
-    $latestTags = Get-LatestTagsForRepoList $uniqueRepoIds
-    Write-Verbose -Verbose "Latest tags: $($latestTags | ConvertTo-Json -Depth 100)"
 }
 
 function Get-UniqueRepoIds {
@@ -166,6 +149,121 @@ function Get-LatestTagsForRepoList {
     }
 
     return $latestTags
+}
+
+function Get-AutoUpdateUrl {
+    param (
+        [PSCustomObject]$Content,
+        [string]$Architecture
+    )
+    if ($Content.autoupdate.PSObject.Properties[$Architecture]) {
+        return $Content.autoupdate.PSObject.Properties[$Architecture].Value.url
+    } else {
+        Write-Verbose -Verbose "Architecture '$Architecture' does not exist in the autoupdate section."
+        return $null
+    }
+}
+
+
+function Convert-AutoUpdateUrlToVersion {
+    param (
+        [string]$AutoUpdateUrl,
+        [string]$Version
+    )
+    return $AutoUpdateUrl -replace '\$version', $Version
+}
+
+function Join-PathWithLatestVersion {
+    param (
+        [hashtable]$PathToRepoIdMap,
+        [hashtable]$LatestTags
+    )
+
+    $newPathToVersionMap = @{}
+
+    foreach ($path in $PathToRepoIdMap.Keys) {
+        $repoId = $PathToRepoIdMap[$path]
+        if ($LatestTags.ContainsKey($repoId)) {
+            $newPathToVersionMap[$path] = $LatestTags[$repoId]
+        }
+    }
+
+    return $newPathToVersionMap
+}
+
+function Update-Version {
+    param (
+        [string]$Path,
+        [string]$Version,
+        [PSCustomObject]$Content
+    )
+    $Content.version = $Version
+
+    foreach ($Architecture in $Content.architecture.PSObject.Properties.Name) {
+        $urlTemplate = Get-AutoUpdateUrl $Content $Architecture
+        if ($urlTemplate -eq $null) {
+            Write-Warning "Failed to get URL for architecture '$Architecture'."
+            continue
+        }
+        $updatedUrl = Convert-AutoUpdateUrlToVersion $urlTemplate $Version
+        if ($updatedUrl -eq $null) {
+            Write-Warning "Failed to update URL for architecture '$Architecture'."
+            continue
+        }
+        Write-Verbose -Verbose "Updating URL for architecture '$Architecture' to '$updatedUrl'."
+        $Content.architecture.$Architecture.url = $updatedUrl
+    }
+
+    $Content | ConvertTo-Json -Depth 100 | Set-Content -Path $Path
+}
+
+function Update-PathVersions {
+    param (
+        [hashtable]$NewPathVersions,
+        [hashtable]$Contents
+    )
+
+    foreach ($path in $NewPathVersions.Keys) {
+        $version = $NewPathVersions[$path]
+        $content = $Contents[$path]
+
+        if ($null -eq $version) {
+            Write-Warning "No version found for path $path"
+            continue
+        }
+        if ($null -eq $content) {
+            Write-Warning "No content found for path $path"
+            continue
+        }
+        Update-Version $path $version $content
+    }
+}
+
+function Update-Bucket {
+    param (
+        [string]$Bucket
+    )
+    $bucketPaths = Get-JsonPaths $Bucket
+    Write-Verbose -Verbose "Bucket paths: $($bucketPaths | ConvertTo-Json -Depth 100)"
+    Write-Verbose -Verbose "Parsing JSON content from $($bucketPaths.Count) files."
+    $Content = Get-JsonContentAsDictionary $bucketPaths
+    Write-Verbose -Verbose "Bucket content: $($Content | ConvertTo-Json -Depth 100)"
+
+    $repoIds = Get-RepoIdForEachPath $Content
+    Write-Verbose -Verbose "Repo IDs: $($repoIds | ConvertTo-Json -Depth 100)"
+
+    $uniqueRepoIds = Get-UniqueRepoIds $repoIds
+    Write-Verbose -Verbose "Unique repo IDs: $($uniqueRepoIds | ConvertTo-Json -Depth 100)"
+    Write-Verbose -Verbose "Getting latest tags for $($RepoIds.Count) repos."
+
+    $latestTags = Get-LatestTagsForRepoList $uniqueRepoIds
+    Write-Verbose -Verbose "Latest tags: $($latestTags | ConvertTo-Json -Depth 100)"
+
+    $NewPathVersions = Join-PathWithLatestVersion $repoIds $latestTags
+    Write-Verbose -Verbose "New Path versions: $($NewPathVersions | ConvertTo-Json -Depth 100)"
+
+    Write-Verbose -Verbose "Updating path versions."
+    Update-PathVersions $NewPathVersions $Content
 }
 
 Update-Bucket $bucket

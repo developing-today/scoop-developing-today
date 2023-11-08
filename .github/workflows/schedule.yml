@@ -4,16 +4,12 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-name: Excavator
+name: Autoupdate
 jobs:
-  excavate:
-    name: Excavator
-    runs-on: windows-latest
+  autoupdate:
+    name: Autoupdate
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@main
-    - name: Excavator
-      uses: ScoopInstaller/GithubActions@main
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SKIP_UPDATED: '1'
-        THROW_ERROR: '0'
+    - run: ./bin/autoupdate.ps1
+    - uses: stefanzweifel/git-auto-commit-action@v5
