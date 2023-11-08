@@ -1,158 +1,171 @@
-Add-Type -AssemblyName System.IO.Compression
+param (
+    [string]$bucket = ''
+)
 
-. "$PSScriptRoot\..\lib\json.ps1"
-
-$BucketDir = "$PSScriptRoot\..\bucket"
-if (!(Test-Path -Path $BucketDir)) {
-    New-Item -Path $BucketDir -ItemType Directory
+if ([string]::IsNullOrWhiteSpace($bucket)) {
+    $bucket = "$PSScriptRoot/../bucket"
+    Write-Verbose -Verbose "Using default bucket path '$bucket'."
 }
-$TempFile = New-TemporaryFile
 
-$PadURIs = [System.Collections.ArrayList]((Invoke-WebRequest "https://www.nirsoft.net/pad/pad-links.txt" -UseBasicParsing).Content -split "\n")
-$PadURIs.Remove("")
-# The following are bundles, not individual tools.
-$PadURIs.Remove("http://www.nirsoft.net/pad/browsertools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/domainlookuptools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/networktools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/outlooktools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/progtools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/regtools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/systools.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/videoaudiotools.xml")
-# The following are obsolete.
-$PadURIs.Remove("http://www.nirsoft.net/pad/astlog.xml")
-# The following have passwords and need to be updated manually.
-$PadURIs.Remove("http://www.nirsoft.net/pad/chromepass.xml")
-$PadURIs.Remove("http://www.nirsoft.net/pad/wirelesskeyview.xml")
+function Get-JsonPaths {
+    param (
+        [string]$Path
+    )
 
-foreach ($PadURI in $PadURIs) {
-    Write-Output "Parsing $PadURI..."
-    [xml]$Pad = (Invoke-WebRequest -Uri $PadURI -UseBasicParsing).Content
-
-    $ProgramName = $Pad.XML_DIZ_INFO.Program_Info.Program_Name.Trim()
-    $ShortDescription = (($Pad.XML_DIZ_INFO.Program_Descriptions.English.Char_Desc_45 -replace "[\n\r ]+", " ") -replace '["\*/:<>\?\\\|]+', "_").Trim().TrimEnd(".")
-    if ($ShortDescription -eq "") {
-        $LinkName = "NirSoft\$ProgramName"
-    } else {
-        $LinkName = "NirSoft\$ProgramName - $ShortDescription"
+    if (-not (Test-Path -Path $Path -PathType Container)) {
+        Write-Error "The provided path is not a directory."
+        return @()
     }
 
-    $JSON = [ordered]@{}
-    $JSON.Add("homepage", ($Pad.XML_DIZ_INFO.Web_Info.Application_URLs.Application_Info_URL -replace "^http://", "https://"))
-    $JSON.Add("checkver", "$ProgramName v(\d+\.\d\d)")
-    $JSON.Add("version", $Pad.XML_DIZ_INFO.Program_Info.Program_Version)
-    $JSON.Add("license", $Pad.XML_DIZ_INFO.Program_Info.Program_Type.ToLower())
-    $JSON.Add("description", ($Pad.XML_DIZ_INFO.Program_Descriptions.English.Char_Desc_2000 -replace "[\n\r ]+", " ").Trim())
+    return Get-ChildItem -Path $Path -Filter *.json | Select-Object -ExpandProperty FullName
+}
 
-    $32URI = $Pad.XML_DIZ_INFO.Web_Info.Download_URLs.Primary_Download_URL -replace "^http://", "https://"
-    $64URI = $32URI -replace "\.zip$", "-x64.zip"
+function Get-JsonContentAsDictionary {
+    param (
+        [string[]]$Paths
+    )
 
-    $Has64 = $False
-    try {
-        $Request = [System.Net.WebRequest]::Create($64URI)
-        $Request.Referer = $JSON.homepage
-        $Response = $Request.GetResponse()
-        if ($Response.StatusCode -eq "OK") {
-            $Has64 = $True
-            $64Hash = (Get-FileHash -InputStream ($Response.GetResponseStream())).Hash.ToLower()
-        }
-    } catch {}
-
-    $Has32 = $False
-    try {
-        $Request = [System.Net.WebRequest]::Create($32URI)
-        $Request.Referer = $JSON.homepage
-        $Response = $Request.GetResponse()
-        if ($Response.StatusCode -eq "OK") {
-            $Has32 = $True
-            $32Hash = (Get-FileHash -InputStream ($Response.GetResponseStream())).Hash.ToLower()
-        }
-    } catch {}
-
-    if ($Has32 -and $Has64) {
-        $JSON.Add("architecture", [ordered]@{
-            "64bit" = [ordered]@{
-                "url" = $64URI
-                "hash" = $64Hash
-            }
-            "32bit" = [ordered]@{
-                "url" = $32URI
-                "hash" = $32Hash
-            }
-        })
-        $JSON.Add("autoupdate", [ordered]@{
-            "architecture"=[ordered]@{
-                "64bit" = [ordered]@{
-                    "url" = $64URI
-                }
-                "32bit" = [ordered]@{
-                    "url" = $32URI
-                }
-            }
-        })
-    } elseif ($Has64) {
-        $JSON.Add("url", $64URI)
-        $JSON.Add("hash", $64Hash)
-        $JSON.Add("autoupdate", [ordered]@{
-            "url" = $64URI
-        })
-    } elseif ($Has32) {
-        $JSON.Add("url", $32URI)
-        $JSON.Add("hash", $32Hash)
-        $JSON.Add("autoupdate", [ordered]@{
-            "url" = $32URI
-        })
-    } else {
-        Write-Output "Something went seriously wrong. Skipping."
-        continue
-    }
-
-    $Executable = "$ProgramName.exe"
-    try {
-        # Yes, I'm downloading the file a second time, but PowerShell doesn't
-        # seem to provide any way to duplicate a stream, and downloading to
-        # a file can trigger Windows antivirus detection.
-        $Request = [System.Net.WebRequest]::Create($32URI)
-        $Request.Referer = $JSON.homepage
-        $Response = $Request.GetResponse()
-        if ($Response.StatusCode -eq "OK") {
-            $ZipFile = New-Object IO.Compression.ZipArchive($Response.GetResponseStream())
-            $Executable = $ZipFile.Entries.Where({$_.Name -match "\.exe$"})[0].Name
-        }
-    } catch {}
-
-    $JSON.Add("bin", $Executable)
-    $JSON.Add("shortcuts", @(,
-        @(
-            $Executable,
-            $LinkName
-        )
-    ))
-
-    # Special case.
-    if ($PadURI -eq "http://www.nirsoft.net/pad/usbdeview.xml") {
-        $IDURI = "http://www.linux-usb.org/usb.ids"
+    $dict = @{}
+    foreach ($path in $Paths) {
         try {
-            Invoke-WebRequest $IDURI -Headers @{"Referer" = $JSON.homepage} -OutFile $TempFile -UserAgent "Mozilla/5.0"
-            $IDHash = (Get-FileHash -LiteralPath $TempFile).Hash.ToLower()
-            if ($Has32 -and $Has64) {
-                $JSON.architecture."64bit".url = @($64URI, $IDURI)
-                $JSON.architecture."64bit".hash = @($64Hash, $IDHash)
-                $JSON.architecture."32bit".url = @($32URI, $IDURI)
-                $JSON.architecture."32bit".hash = @($32Hash, $IDHash)
-            } elseif ($Has64) {
-                $JSON.url = @($64URI, $IDURI)
-                $JSON.hash = @($64Hash, $IDHash)
-            } elseif ($Has32) {
-                $JSON.url = @($32URI, $IDURI)
-                $JSON.hash = @($32Hash, $IDHash)
-            }
-        } catch {}
+            $content = Get-Content -Path $path -Raw | ConvertFrom-Json -ErrorAction Stop
+            $dict[$path] = $content
+        }
+        catch {
+            Write-Error "Failed to parse JSON content from ${path}: $_"
+        }
     }
 
-    $JSON | ConvertToPrettyJson | Out-File ("$BucketDir\" + ($ProgramName.ToLower() -replace " ", "") + ".json") -Encoding ascii
-
-    Start-Sleep -Seconds 1
+    return $dict
 }
 
-Remove-Item $TempFile.FullName -Force
+function Convert-GitHubUrlToRepoId {
+    param (
+        [string]$GithubUrl
+    )
+
+    $ownerRepoRegex = 'github\.com[/:](?<owner>[^/]+)/(?<repo>[^/.]+)'
+    if ($GithubUrl -match $ownerRepoRegex) {
+        $owner = $Matches['owner']
+        $repo = $Matches['repo']
+        return "$owner/$repo"
+    }
+    else {
+        Write-Error "Invalid GitHub URL format."
+        return $null
+    }
+}
+function Get-GitHubUrlFromData {
+    param (
+        [PSCustomObject]$Data
+    )
+
+    if ($Data.psobject.properties.name -contains 'checkver') {
+        if ($Data.checkver.psobject.properties.name -contains 'github') {
+            return $Data.checkver.github
+        }
+    }
+
+    return $null
+}
+
+function Convert-GitHubUrlToRepoId {
+    param (
+        [string]$GithubUrl
+    )
+
+    $ownerRepoRegex = 'github\.com[/:](?<owner>[^/]+)/(?<repo>[^/.]+)'
+    if ($GithubUrl -match $ownerRepoRegex) {
+        $owner = $Matches['owner']
+        $repo = $Matches['repo']
+        return "$owner/$repo"
+    }
+    else {
+        Write-Error "Invalid GitHub URL format."
+        return $null
+    }
+}
+function Get-RepoIdForEachPath {
+    param (
+        [hashtable]$Hashtable
+    )
+
+    $RepoIds = @{}
+    foreach ($path in $Hashtable.Keys) {
+        $Data = $Hashtable[$path]
+        $repoUrl = Get-GitHubUrlFromData -Data $Data
+        if ($repoUrl) {
+            $RepoId = Convert-GitHubUrlToRepoId -githubUrl $repoUrl
+            $RepoIds.Add($path, $RepoId)
+        }
+    }
+    return $RepoIds
+}
+
+function Update-Bucket {
+    param (
+        [string]$Bucket
+    )
+    $bucketPaths = Get-JsonPaths $Bucket
+    Write-Verbose -Verbose "Bucket paths: $($bucketPaths | ConvertTo-Json -Depth 100)"
+    Write-Verbose -Verbose "Parsing JSON content from $($bucketPaths.Count) files."
+    $bucketContent = Get-JsonContentAsDictionary $bucketPaths
+    Write-Verbose -Verbose "Bucket content: $($bucketContent | ConvertTo-Json -Depth 100)"
+
+    $repoIds = Get-RepoIdForEachPath $bucketContent
+    Write-Verbose -Verbose "Repo IDs: $($repoIds | ConvertTo-Json -Depth 100)"
+
+    $uniqueRepoIds = Get-UniqueRepoIds $repoIds
+    Write-Verbose -Verbose "Unique repo IDs: $($uniqueRepoIds | ConvertTo-Json -Depth 100)"
+    Write-Verbose -Verbose "Getting latest tags for $($RepoIds.Count) repos."
+
+    $latestTags = Get-LatestTagsForRepoList $uniqueRepoIds
+    Write-Verbose -Verbose "Latest tags: $($latestTags | ConvertTo-Json -Depth 100)"
+}
+
+function Get-UniqueRepoIds {
+    param (
+        [hashtable]$RepoIds
+    )
+    $uniqueRepoIds = $RepoIds.Values | Sort-Object -Unique
+    return $uniqueRepoIds
+}
+
+function Get-LatestTagForRepo {
+    param (
+        [string]$RepoId
+    )
+
+    try {
+        $latestTag = gh api -X GET "repos/$RepoId/releases/latest" --jq '.tag_name'
+        if ($latestTag) {
+            return $latestTag
+        } else {
+            Write-Error "No releases found for $RepoId."
+            return $null
+        }
+    } catch {
+        Write-Error "Failed to get latest release for ${repoId}: $_"
+        return $null
+    }
+}
+
+function Get-LatestTagsForRepoList {
+    param (
+        [string[]]$RepoIds
+    )
+
+    $latestTags = @{}
+    foreach ($repoId in $RepoIds) {
+        $latestTag = Get-LatestTagForRepo -repoId $repoId
+        if ($latestTag) {
+            $latestTags[$repoId] = $latestTag
+        } else {
+            Write-Error "Failed to get latest tag for ${repoId}."
+        }
+    }
+
+    return $latestTags
+}
+
+Update-Bucket $bucket
