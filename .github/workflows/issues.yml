@@ -1,6 +1,9 @@
 on:
   issues:
     types: [ opened, labeled ]
+permissions:
+  issues: write
+  pull-requests: write
 name: Issue
 jobs:
   issueHandler:
