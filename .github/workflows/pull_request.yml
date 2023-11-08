@@ -1,6 +1,9 @@
 on:
   pull_request:
     types: [ opened ]
+permissions:
+  issues: write
+  pull-requests: write
 name: Pull Requests
 jobs:
   pullRequestHandler:
