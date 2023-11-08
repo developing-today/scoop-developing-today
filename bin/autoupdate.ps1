@@ -197,6 +197,7 @@ function Update-Version {
         [string]$Version,
         [PSCustomObject]$Content
     )
+    Write-Verbose -Verbose "Updating version for path '$Path' to '$Version'."
     $Content.version = $Version
 
     foreach ($Architecture in $Content.architecture.PSObject.Properties.Name) {
@@ -214,17 +215,19 @@ function Update-Version {
         $Content.architecture.$Architecture.url = $updatedUrl
     }
 
+    Write-Verbose -Verbose "Writing updated content to '$Path'."
     $Content | ConvertTo-Json -Depth 100 | Set-Content -Path $Path
+    Write-Verbose -Verbose "Done with path '$Path'."
 }
 
 function Update-PathVersions {
     param (
-        [hashtable]$NewPathVersions,
+        [hashtable]$PathVersions,
         [hashtable]$Contents
     )
 
-    foreach ($path in $NewPathVersions.Keys) {
-        $version = $NewPathVersions[$path]
+    foreach ($path in $PathVersions.Keys) {
+        $version = $PathVersions[$path]
         $content = $Contents[$path]
 
         if ($null -eq $version) {
@@ -259,11 +262,12 @@ function Update-Bucket {
     $latestTags = Get-LatestTagsForRepoList $uniqueRepoIds
     Write-Verbose -Verbose "Latest tags: $($latestTags | ConvertTo-Json -Depth 100)"
 
-    $NewPathVersions = Join-PathWithLatestVersion $repoIds $latestTags
-    Write-Verbose -Verbose "New Path versions: $($NewPathVersions | ConvertTo-Json -Depth 100)"
+    $PathVersions = Join-PathWithLatestVersion $repoIds $latestTags
+    Write-Verbose -Verbose "New Path versions: $($PathVersions | ConvertTo-Json -Depth 100)"
 
-    Write-Verbose -Verbose "Updating path versions."
-    Update-PathVersions $NewPathVersions $Content
+    Write-Verbose -Verbose "Updating path versions for $($PathVersions.Count) paths."
+    Update-PathVersions $PathVersions $Content
+    Write-Verbose -Verbose "Done."
 }
 
 Update-Bucket $bucket
