@@ -1,10 +1,16 @@
-# scoop-nirsoft
+# scoop-developing-today
 
-A [Scoop](http://scoop.sh) bucket of useful [NirSoft](https://www.nirsoft.net/) utilities.
+A [Scoop](http://scoop.sh) bucket of useful [developing-today](https://github.com/developing-today/) utilities.
 
 To make it easy to install apps from this bucket, run:
 
-    > scoop bucket add nirsoft
+```
+scoop bucket add developing-today https://github.com/developing-today/scoop-developing-today
+```
+## SHA check?
+
+developing-today includes a `checksums.txt`, `checksums.txt.pem`, `checksums.txt.sig` files. These could be used to automatically check the hash of the downloaded file. As-is, we are not validating the hash and are relying on the github release being valid.
+
 
 ## Why does this exist?
 
@@ -17,4 +23,4 @@ For an app to be acceptable for the main bucket, it should be:
 
 The "extras" bucket has more relaxed requirements, so it's a good place to put anything that doesn't quite fit in the main bucket.
 
-The "nirsoft" bucket is specifically for the many (hundreds) of utilities found on the NirSoft website.
+The "developing-today" bucket is specifically for the utilities found on the developing-today website which haven't made it into the main bucket, _yet_.
