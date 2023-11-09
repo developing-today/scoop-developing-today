@@ -144,11 +144,11 @@ function Get-LatestTagForRepo {
         if ($latestTag) {
             return $latestTag
         } else {
-            Write-Error "No releases found for $RepoId."
+            Write-Error "No releases found for '$RepoId'."
             return $null
         }
     } catch {
-        Write-Error "Failed to get latest release for ${repoId}: $_"
+        Write-Error "Failed to get latest release for '${repoId}': $_"
         return $null
     }
 }
@@ -160,11 +160,13 @@ function Get-LatestTagsForRepoList {
 
     $latestTags = @{}
     foreach ($repoId in $RepoIds) {
+        Write-Verbose -Verbose "Getting latest tag for repo '$repoId'."
         $latestTag = Get-LatestTagForRepo -repoId $repoId
         if ($latestTag) {
+            Write-Verbose -Verbose "Acquired latest tag '$latestTag' for repo '$repoId'."
             $latestTags[$repoId] = $latestTag
         } else {
-            Write-Error "Failed to get latest tag for ${repoId}."
+            Write-Error "Failed to get latest tag for '${repoId}'."
         }
     }
 
@@ -244,7 +246,7 @@ function Update-Version {
     $oldVersion = $Content.version
 
     if ($newVersion -eq $oldVersion) {
-        Write-Verbose -Verbose "Version '$newVersion' is already up to date for path '$Path'."
+        Write-Verbose -Verbose "Version '$newVersion' is already synced for path '$Path'."
         return
     }
 
