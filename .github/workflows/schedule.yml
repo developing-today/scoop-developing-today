@@ -18,4 +18,4 @@ jobs:
         GH_TOKEN: ${{ github.token }}
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: ${{ steps.autoupdate.outputs.message }}
+        commit_message: ${{ fromJson(steps.autoupdate.outputs.commit_message) }}
