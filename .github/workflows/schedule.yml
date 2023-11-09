@@ -11,26 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@main
-    - run: ./bin/autoupdate.ps1
+    - id: autoupdate
+      run: ./bin/autoupdate.ps1
       shell: pwsh
       env:
         GH_TOKEN: ${{ github.token }}
-
-    - id: commit-message
-      shell: pwsh
-      run: |
-        $versions = Get-Content ./bin/versions.txt -ErrorAction SilentlyContinue
-        $count = ($versions | Measure-Object).Count
-
-        if ($count -eq 1) {
-          $message = $versions
-        } elseif ($count -gt 1) {
-          $message = "$count app versions updated`n`n$versions"
-        } else {
-          $message = "Autoupdate"
-        }
-        echo "Commit message: $message"
-        echo "::set-output name=message::$message"
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: ${{ steps.commit-message.outputs.message }}
+        commit_message: ${{ steps.autoupdate.outputs.message }}

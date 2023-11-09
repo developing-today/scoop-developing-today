@@ -294,6 +294,21 @@ function Update-PathVersions {
     }
 }
 
+function New-CommitMessage {
+    $versions = Get-Content $versionFile -ErrorAction SilentlyContinue
+    $count = ($versions | Measure-Object).Count
+
+    if ($count -eq 1) {
+        $message = $versions
+    } elseif ($count -gt 1) {
+        $message = "$count app versions updated`n`n$($versions -join "`n")"
+    } else {
+        $message = "Autoupdate"
+    }
+    Write-Verbose -Verbose "Commit message: $message"
+    Write-Output "::set-output name=message::$message"
+}
+
 function Update-Bucket {
     param (
         [string]$Bucket
@@ -319,6 +334,9 @@ function Update-Bucket {
 
     Write-Verbose -Verbose "Updating path versions for $($PathTags.Count) paths."
     Update-PathVersions $PathTags $Content
+
+    Write-Verbose -Verbose "Generating commit message."
+    New-CommitMessage
     Write-Verbose -Verbose "Done."
 }
 
