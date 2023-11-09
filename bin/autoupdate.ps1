@@ -244,7 +244,7 @@ function Update-Version {
     $oldVersion = $Content.version
 
     if ($newVersion -eq $oldVersion) {
-        Write-Verbose -Verbose "Version '$newVersion' is already up to date for path '$Path'.
+        Write-Verbose -Verbose "Version '$newVersion' is already up to date for path '$Path'."
         return
     }
 
