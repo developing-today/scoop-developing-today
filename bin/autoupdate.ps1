@@ -227,7 +227,8 @@ function Convert-TagToVersion {
     param (
         [string]$Tag
     )
-    $version = $Tag -replace '^v', ''
+    # Replace 'v' followed by a number and not followed by a letter
+    $version = $Tag -replace '^v(?=\d)(?!\d*\p{L})', ''
     return $version
 }
 
