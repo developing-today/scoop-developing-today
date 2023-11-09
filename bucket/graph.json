@@ -1,5 +1,5 @@
 {
-  "version": "v1.2.6",
+  "version": "1.2.6",
   "description": "graph - a series of nodes and edges.",
   "homepage": "https://github.com/developing-today/code",
   "license": "MIT",
@@ -18,10 +18,10 @@
   },
   "autoupdate": {
     "64bit": {
-      "url": "https://github.com/developing-today/code/releases/download/$version/code_$version_graph_windows_386.zip"
+      "url": "https://github.com/developing-today/code/releases/download/v$version/code_v$version_graph_windows_386.zip"
     },
     "32bit": {
-      "url": "https://github.com/developing-today/code/releases/download/$version/code_$version_graph_windows_amd64v1.zip"
+      "url": "https://github.com/developing-today/code/releases/download/v$version/code_v$version_graph_windows_amd64v1.zip"
     }
   }
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
 
 param (
-    [string]$bucket = ''
+    [string]$bucket = '',
+    [string]$versionFile = ''
 )
 
 Set-StrictMode -Version Latest
@@ -11,11 +12,21 @@ if ($PSNativeCommandUseErrorActionPreference) {
     # always true, this is a linter workaround
     $ErrorActionPreference = "Stop"
     $PSDefaultParameterValues['*:ErrorAction'] = 'Stop'
+    $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+    $PSDefaultParameterValues['*:Encoding'] = 'utf8'
+    $utf8 = New-Object System.Text.UTF8Encoding($true)
+    [Console]::OutputEncoding = $utf8
+    $OutputEncoding = $utf8
 }
 
 if ([string]::IsNullOrWhiteSpace($bucket)) {
     $bucket = "$PSScriptRoot/../bucket"
     Write-Verbose -Verbose "Using default bucket path '$bucket'."
+}
+
+if ([string]::IsNullOrWhiteSpace($versionFile)) {
+    $versionFile = "$PSScriptRoot/versions.txt"
+    Write-Verbose -Verbose "Using default version file path '$versionFile'."
 }
 
 function Get-JsonPaths {
@@ -182,7 +193,7 @@ function Convert-AutoUpdateUrlToVersion {
     return $AutoUpdateUrl -replace '\$version', $Version
 }
 
-function Join-PathWithLatestVersion {
+function Join-PathWithLatestTag {
     param (
         [hashtable]$PathToRepoIdMap,
         [hashtable]$LatestTags
@@ -200,14 +211,45 @@ function Join-PathWithLatestVersion {
     return $newPathToVersionMap
 }
 
+function Out-VersionInfo {
+    param (
+        [string]$Path,
+        [string]$newVersion,
+        [string]$oldVersion
+    )
+    $basename = [IO.Path]::GetFileNameWithoutExtension((Split-Path -Leaf $Path))
+    $versionInfo = "$basename $newVersion (was: $oldVersion)"
+    Write-Verbose -Verbose "Writing version info '$versionInfo' to '$versionFile'."
+    $versionInfo | Out-File -FilePath "$versionFile" -Append -Encoding utf8
+}
+
+function Convert-TagToVersion {
+    param (
+        [string]$Tag
+    )
+    $version = $Tag -replace '^v', ''
+    return $version
+}
+
 function Update-Version {
     param (
         [string]$Path,
-        [string]$Version,
+        [string]$Tag,
         [PSCustomObject]$Content
     )
-    Write-Verbose -Verbose "Updating version for path '$Path' to '$Version'."
-    $Content.version = $Version
+    Write-Verbose -Verbose "Updating version for path '$Path' using tag '$Tag'."
+
+    $newVersion = Convert-TagToVersion $Tag
+    $oldVersion = $Content.version
+
+    if ($newVersion -eq $oldVersion) {
+        Write-Verbose -Verbose "Version '$newVersion' is already up to date."
+        return
+    }
+
+    Out-VersionInfo $Path $newVersion $oldVersion
+
+    $Content.version = $newVersion
 
     foreach ($Architecture in $Content.architecture.PSObject.Properties.Name) {
         $urlTemplate = Get-AutoUpdateUrl $Content $Architecture
@@ -215,7 +257,7 @@ function Update-Version {
             Write-Warning "Failed to get URL for architecture '$Architecture'."
             continue
         }
-        $updatedUrl = Convert-AutoUpdateUrlToVersion $urlTemplate $Version
+        $updatedUrl = Convert-AutoUpdateUrlToVersion $urlTemplate $newVersion
         if ($updatedUrl -eq $null) {
             Write-Warning "Failed to update URL for architecture '$Architecture'."
             continue
@@ -231,23 +273,23 @@ function Update-Version {
 
 function Update-PathVersions {
     param (
-        [hashtable]$PathVersions,
+        [hashtable]$PathTags,
         [hashtable]$Contents
     )
 
-    foreach ($path in $PathVersions.Keys) {
-        $version = $PathVersions[$path]
+    foreach ($path in $PathTags.Keys) {
+        $tag = $PathTags[$path]
         $content = $Contents[$path]
 
-        if ($null -eq $version) {
-            Write-Warning "No version found for path $path"
+        if ($null -eq $tag) {
+            Write-Warning "No tag found for path $path"
             continue
         }
         if ($null -eq $content) {
             Write-Warning "No content found for path $path"
             continue
         }
-        Update-Version $path $version $content
+        Update-Version $path $tag $content
     }
 }
 
@@ -271,11 +313,11 @@ function Update-Bucket {
     $latestTags = Get-LatestTagsForRepoList $uniqueRepoIds
     Write-Verbose -Verbose "Latest tags: $($latestTags | ConvertTo-Json -Depth 100)"
 
-    $PathVersions = Join-PathWithLatestVersion $repoIds $latestTags
-    Write-Verbose -Verbose "New Path versions: $($PathVersions | ConvertTo-Json -Depth 100)"
+    $PathTags = Join-PathWithLatestTag $repoIds $latestTags
+    Write-Verbose -Verbose "New Path versions: $($PathTags | ConvertTo-Json -Depth 100)"
 
-    Write-Verbose -Verbose "Updating path versions for $($PathVersions.Count) paths."
-    Update-PathVersions $PathVersions $Content
+    Write-Verbose -Verbose "Updating path versions for $($PathTags.Count) paths."
+    Update-PathVersions $PathTags $Content
     Write-Verbose -Verbose "Done."
 }
 
