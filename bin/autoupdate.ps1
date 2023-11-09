@@ -305,8 +305,8 @@ function New-CommitMessage {
     } else {
         $message = "Autoupdate"
     }
-    Write-Verbose -Verbose "Commit message: $message"
-    Write-Output "::set-output name=message::$message"
+    Write-Verbose -Verbose "Commit message: $($message | ConvertTo-Json -Depth 100)"
+    Write-Output "::set-output name=message::$($message | ConvertTo-Json -Depth 100)"
 }
 
 function Update-Bucket {
