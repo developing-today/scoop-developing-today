@@ -1,12 +1,17 @@
 {
-  "version": "3.16.0",
+  "version": "3.17.0",
   "description": "goose",
   "homepage": "https://github.com/pressly/goose",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/pressly/goose/releases/download/v3.16.0/goose_windows_x86_64.exe",
-      "bin": [ [ "goose_windows_x86_64.exe", "goose" ] ]
+      "url": "https://github.com/pressly/goose/releases/download/v3.17.0/goose_windows_x86_64.exe",
+      "bin": [
+        [
+          "goose_windows_x86_64.exe",
+          "goose"
+        ]
+      ]
     }
   },
   "checkver": {
