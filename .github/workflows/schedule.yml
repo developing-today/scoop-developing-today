@@ -16,6 +16,6 @@ jobs:
       shell: pwsh
       env:
         GH_TOKEN: ${{ github.token }}
-    - uses: stefanzweifel/git-auto-commit-action@v5
+    - uses: stefanzweifel/git-auto-commit-action@v6
       with:
         commit_message: ${{ fromJson(steps.autoupdate.outputs.commit_message) }}
